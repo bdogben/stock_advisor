@@ -10,6 +10,7 @@ from data.news import get_news
 from logic.sentiment import analyze_news
 from logic.advice import generate_advice
 from logic.trading import buy, sell, get_account_summary
+from logic.autonomous import run_daily_scan
 from storage.portfolio import get_holdings
 
 
@@ -24,6 +25,7 @@ def show_menu() -> None:
     print("2. News & Sentiment")
     print("3. Paper Trading (Buy / Sell / Summary)")
     print("4. View Real Portfolio")
+    print("5. Run Autonomous Daily Scan")
     print("0. Exit")
     print("=========================")
 
@@ -239,6 +241,71 @@ def option_view_portfolio() -> None:
 
 
 # ------------------------------------------------------------------
+# Option 5 – Autonomous Daily Scan
+# ------------------------------------------------------------------
+def option_autonomous_scan() -> None:
+    """
+    Run the full autonomous paper-trading cycle.
+
+    Asks the user whether this should be a dry run (safe preview)
+    or a live run (actually executes the trades).
+    """
+    print("\n----- Autonomous Daily Scan -----")
+    print("This will analyse the entire universe and decide trades")
+    print("according to the locked-in rules (max 10 positions,")
+    print("15% cash reserve, Medium/High confidence only, etc.).")
+    print()
+    print("1. Dry run  (analyse + propose only – no trades)")
+    print("2. Live run (analyse + propose + execute trades)")
+    print("0. Cancel")
+    print("---------------------------------")
+
+    choice = input("Enter choice: ").strip()
+
+    if choice == "0":
+        print("Cancelled.")
+        return
+    if choice not in ("1", "2"):
+        print("Invalid choice. Please enter 0, 1 or 2.")
+        return
+
+    dry_run = choice == "1"
+
+    if dry_run:
+        print("\nStarting DRY RUN (no trades will be executed)...")
+    else:
+        print("\nStarting LIVE RUN (trades WILL be executed on the paper account)...")
+        confirm = input("Type YES to confirm: ").strip()
+        if confirm != "YES":
+            print("Live run cancelled.")
+            return
+
+    # Call the autonomous engine
+    result = run_daily_scan(dry_run=dry_run)
+
+    # Extra readable summary from the returned dict
+    # (run_daily_scan already prints a lot; this just makes the final
+    # numbers easy to spot at a glance)
+    print("\n===== SCAN SUMMARY =====")
+    print(f"Universe size     : {result['universe_size']}")
+    print(f"Tickers analysed  : {result['analysed']}")
+    print(f"Proposed trades   : {len(result['proposed_trades'])}")
+    print(f"Executed trades   : {len(result['executed'])}")
+    print(f"Message           : {result['message']}")
+    print()
+
+    before = result["account_before"]
+    after = result["account_after"]
+    print("Account before:")
+    print(f"  Cash      : ${before['cash']:,.2f}")
+    print(f"  Positions : {before['position_count']}")
+    print("Account after:")
+    print(f"  Cash      : ${after['cash']:,.2f}")
+    print(f"  Positions : {after['position_count']}")
+    print("========================")
+
+
+# ------------------------------------------------------------------
 # Main loop
 # ------------------------------------------------------------------
 def main() -> None:
@@ -257,11 +324,13 @@ def main() -> None:
             option_paper_trading()
         elif choice == "4":
             option_view_portfolio()
+        elif choice == "5":
+            option_autonomous_scan()
         elif choice == "0":
             print("Goodbye!")
             break
         else:
-            print("Invalid choice. Please enter 0, 1, 2, 3 or 4.")
+            print("Invalid choice. Please enter 0, 1, 2, 3, 4 or 5.")
 
 
 # ------------------------------------------------------------------
